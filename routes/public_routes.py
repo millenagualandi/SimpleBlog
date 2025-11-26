@@ -6,6 +6,7 @@ from util.auth_decorator import obter_usuario_logado
 from util.rate_limiter import DynamicRateLimiter, obter_identificador_cliente
 from util.flash_messages import informar_erro
 from util.logger_config import logger
+from repo import artigo_repo, categoria_repo
 
 router = APIRouter()
 templates_public = criar_templates("templates")
@@ -23,7 +24,7 @@ public_limiter = DynamicRateLimiter(
 @router.get("/")
 async def home(request: Request):
     """
-    Rota inicial - Landing Page pública (sempre)
+    Rota inicial - Landing Page pública com os últimos artigos
     """
     # Rate limiting por IP
     ip = obter_identificador_cliente(request)
@@ -36,9 +37,19 @@ async def home(request: Request):
             status_code=status.HTTP_429_TOO_MANY_REQUESTS
         )
 
+    # Obtém os 6 últimos artigos publicados
+    ultimos_artigos = artigo_repo.obter_ultimos_publicados(6)
+    categorias = categoria_repo.obter_todos()
+    usuario_logado = obter_usuario_logado(request)
+
     return templates_public.TemplateResponse(
         "index.html",
-        {"request": request}
+        {
+            "request": request,
+            "usuario_logado": usuario_logado,
+            "ultimos_artigos": ultimos_artigos,
+            "categorias": categorias,
+        }
     )
 
 
@@ -59,9 +70,19 @@ async def index(request: Request):
             status_code=status.HTTP_429_TOO_MANY_REQUESTS
         )
 
+    # Obtém os 6 últimos artigos publicados
+    ultimos_artigos = artigo_repo.obter_ultimos_publicados(6)
+    categorias = categoria_repo.obter_todos()
+    usuario_logado = obter_usuario_logado(request)
+
     return templates_public.TemplateResponse(
         "index.html",
-        {"request": request}
+        {
+            "request": request,
+            "usuario_logado": usuario_logado,
+            "ultimos_artigos": ultimos_artigos,
+            "categorias": categorias,
+        }
     )
 
 

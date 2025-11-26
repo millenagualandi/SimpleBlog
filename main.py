@@ -1,18 +1,22 @@
+
+# ------------------------------------------------------------
+# main.py – Aplicação FastAPI
+# ------------------------------------------------------------
+
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from pathlib import Path
 
+# ------------------------------------------------------------
 # Configurações
+# ------------------------------------------------------------
 from util.config import APP_NAME, SECRET_KEY, HOST, PORT, RELOAD, VERSION
-
-# Logger
 from util.logger_config import logger
-
-# Exception Handlers
+from util.csrf_protection import MiddlewareProtecaoCSRF
 from util.exception_handlers import (
     http_exception_handler,
     validation_exception_handler,
@@ -20,12 +24,27 @@ from util.exception_handlers import (
     form_validation_exception_handler,
 )
 from util.exceptions import ErroValidacaoFormulario
+from util.seed_data import inicializar_dados
 
+# ------------------------------------------------------------
 # Repositórios
-from repo import usuario_repo, configuracao_repo, chamado_repo, chamado_interacao_repo, indices_repo
-from repo import chat_sala_repo, chat_participante_repo, chat_mensagem_repo
+# ------------------------------------------------------------
+from repo import (
+    categoria_repo,      # NOVO: Repositório de categorias
+    artigo_repo,         # NOVO: Repositório de artigos
+    usuario_repo,
+    configuracao_repo,
+    chamado_repo,
+    chamado_interacao_repo,
+    indices_repo,
+    chat_sala_repo,
+    chat_participante_repo,
+    chat_mensagem_repo,
+)
 
+# ------------------------------------------------------------
 # Rotas
+# ------------------------------------------------------------
 from routes.auth_routes import router as auth_router
 from routes.chamados_routes import router as chamados_router
 from routes.admin_usuarios_routes import router as admin_usuarios_router
@@ -36,117 +55,128 @@ from routes.usuario_routes import router as usuario_router
 from routes.chat_routes import router as chat_router
 from routes.public_routes import router as public_router
 from routes.examples_routes import router as examples_router
+from routes.admin_categorias_routes import router as admin_categorias_router  # NOVO
+from routes.artigos_routes import router as artigos_router                    # NOVO
 
-# Seeds
-from util.seed_data import inicializar_dados
 
-# Criar aplicação FastAPI
-app = FastAPI(title=APP_NAME, version=VERSION)
+# ------------------------------------------------------------
+# Função de criação da aplicação
+# ------------------------------------------------------------
+def create_app() -> FastAPI:
+    """Cria e configura a instância principal da aplicação."""
+    app = FastAPI(title=APP_NAME, version=VERSION)
 
-# Configurar SessionMiddleware
-app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
+    # ------------------------------------------------------------
+    # Middlewares
+    # ------------------------------------------------------------
+    app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
+    app.add_middleware(MiddlewareProtecaoCSRF)
+    logger.info("✅ Middlewares registrados com sucesso")
 
-# Configurar CSRF Protection Middleware
-from util.csrf_protection import MiddlewareProtecaoCSRF
-app.add_middleware(MiddlewareProtecaoCSRF)
-logger.info("CSRF Protection habilitado")
+    # ------------------------------------------------------------
+    # Handlers de exceção
+    # ------------------------------------------------------------
+    app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+    app.add_exception_handler(RequestValidationError, validation_exception_handler)
+    app.add_exception_handler(ErroValidacaoFormulario, form_validation_exception_handler)
+    app.add_exception_handler(Exception, generic_exception_handler)
+    logger.info("✅ Exception handlers configurados")
 
-# Registrar Exception Handlers
-app.add_exception_handler(StarletteHTTPException, http_exception_handler)  # type: ignore[arg-type]
-app.add_exception_handler(RequestValidationError, validation_exception_handler)  # type: ignore[arg-type]
-app.add_exception_handler(ErroValidacaoFormulario, form_validation_exception_handler)  # type: ignore[arg-type]
-app.add_exception_handler(Exception, generic_exception_handler)
-logger.info("Exception handlers registrados")
+    # ------------------------------------------------------------
+    # Arquivos estáticos
+    # ------------------------------------------------------------
+    static_path = Path("static")
+    if static_path.exists():
+        app.mount("/static", StaticFiles(directory="static"), name="static")
+        logger.info("📂 Arquivos estáticos montados em /static")
+    else:
+        logger.warning(
+            "⚠️ Diretório 'static' não encontrado – rotas estáticas não foram montadas"
+        )
 
-# Montar arquivos estáticos
-static_path = Path("static")
-if static_path.exists():
-    app.mount("/static", StaticFiles(directory="static"), name="static")
-    logger.info("Arquivos estáticos montados em /static")
+    # ------------------------------------------------------------
+    # Banco de dados e seeds
+    # ------------------------------------------------------------
+    try:
+        logger.info("🛠️ Criando/verificando tabelas do banco de dados...")
+        usuario_repo.criar_tabela()
+        configuracao_repo.criar_tabela()
+        chamado_repo.criar_tabela()
+        chamado_interacao_repo.criar_tabela()
+        chat_sala_repo.criar_tabela()
+        chat_participante_repo.criar_tabela()
+        chat_mensagem_repo.criar_tabela()
+        indices_repo.criar_indices()
+        categoria_repo.criar_tabela()    # NOVO: Criar tabela de categorias
+        artigo_repo.criar_tabela()       # NOVO: Criar tabela de artigos
+        logger.info("✅ Tabelas e índices criados/verificados com sucesso")
 
-# Definir repositórios e nomes das tabelas
-TABELAS = [
-    (usuario_repo, "usuario"),
-    (configuracao_repo, "configuracao"),
-    (chamado_repo, "chamado"),
-    (chamado_interacao_repo, "chamado_interacao"),
-    (chat_sala_repo, "chat_sala"),
-    (chat_participante_repo, "chat_participante"),
-    (chat_mensagem_repo, "chat_mensagem"),
-]
+        inicializar_dados()
+        logger.info("🌱 Dados iniciais carregados com sucesso")
+    except Exception as e:
+        logger.error(f"❌ Erro ao preparar banco de dados: {e}", exc_info=True)
+        raise
 
-# Criar tabelas do banco de dados
-logger.info("Criando tabelas do banco de dados...")
-try:
-    for repo, nome in TABELAS:
-        repo.criar_tabela()
-        logger.info(f"Tabela '{nome}' criada/verificada")
+    # ------------------------------------------------------------
+    # Registro das rotas
+    # ------------------------------------------------------------
+    routers = [
+        auth_router,
+        chamados_router,
+        admin_usuarios_router,
+        admin_config_router,
+        admin_backups_router,
+        admin_chamados_router,
+        usuario_router,
+        chat_router,
+        public_router,
+        examples_router,
+        admin_categorias_router,  # NOVO: Rotas de administração de categorias
+        artigos_router,           # NOVO: Rotas de artigos
+    ]
+    for r in routers:
+        app.include_router(r)
+        logger.info(
+            f"🔗 Router incluído: {r.prefix if hasattr(r, 'prefix') else 'sem prefixo'}"
+        )
 
-    # Criar índices para otimização de performance
-    indices_repo.criar_indices()
+    # ------------------------------------------------------------
+    # Health Check
+    # ------------------------------------------------------------
+    @app.get("/health")
+    async def health_check():
+        return {"status": "healthy"}
 
-except Exception as e:
-    logger.error(f"Erro ao criar tabelas: {e}")
-    raise
+    logger.info(f"🚀 {APP_NAME} inicializado com sucesso (v{VERSION})")
+    return app
 
-# Inicializar dados seed
-try:
-    inicializar_dados()
-except Exception as e:
-    logger.error(f"Erro ao inicializar dados seed: {e}", exc_info=True)
 
-# Migrar configurações do .env para o banco de dados
-try:
-    from util.migrar_config import migrar_configs_para_banco
-    migrar_configs_para_banco()
-except Exception as e:
-    logger.error(f"Erro ao migrar configurações para banco: {e}", exc_info=True)
+# ------------------------------------------------------------
+# Cria a aplicação (para o Uvicorn)
+# ------------------------------------------------------------
+app = create_app()
 
-# Definir routers e suas configurações
-# IMPORTANTE: public_router e examples_router devem ser incluídos por último
-ROUTERS = [
-    (auth_router, ["Autenticação"], "autenticação"),
-    (chamados_router, ["Chamados"], "chamados"),
-    (admin_usuarios_router, ["Admin - Usuários"], "admin de usuários"),
-    (admin_config_router, ["Admin - Configurações"], "admin de configurações"),
-    (admin_backups_router, ["Admin - Backups"], "admin de backups"),
-    (admin_chamados_router, ["Admin - Chamados"], "admin de chamados"),
-    (usuario_router, ["Usuário"], "usuário"),
-    (chat_router, ["Chat"], "chat"),
-    (public_router, ["Público"], "público"),
-    (examples_router, ["Exemplos"], "exemplos"),
-]
-
-# Incluir routers
-for router, tags, nome in ROUTERS:
-    app.include_router(router, tags=tags)
-    logger.info(f"Router de {nome} incluído")
-
-@app.get("/health")
-async def health_check():
-    """Endpoint de health check"""
-    return {"status": "healthy"}
-
+# ------------------------------------------------------------
+# Execução direta (para `python main.py`)
+# ------------------------------------------------------------
 if __name__ == "__main__":
-    logger.info("=" * 60)
-    logger.info(f"Iniciando {APP_NAME} v{VERSION}")
-    logger.info("=" * 60)
-
-    logger.info(f"Servidor rodando em http://{HOST}:{PORT}")
-    logger.info(f"Hot reload: {'Ativado' if RELOAD else 'Desativado'}")
-    logger.info(f"Documentação API: http://{HOST}:{PORT}/docs")
-    logger.info("=" * 60)
+    logger.info("=" * 70)
+    logger.info(f"🟢 Iniciando {APP_NAME} v{VERSION}")
+    logger.info(f"🌐 Acesse: http://{HOST}:{PORT}")
+    logger.info(f"🔁 Hot reload: {'Ativado' if RELOAD else 'Desativado'}")
+    logger.info(f"📘 Docs: http://{HOST}:{PORT}/docs")
+    logger.info("=" * 70)
 
     try:
         uvicorn.run(
             "main:app",
             host=HOST,
             port=PORT,
-            reload=RELOAD,
-            log_level="info"
+            # reload=RELOAD,
+            log_level="info",
         )
     except KeyboardInterrupt:
-        logger.info("Servidor encerrado pelo usuário")
+        logger.info("🛑 Servidor encerrado pelo usuário")
     except Exception as e:
-        logger.error(f"Erro ao iniciar servidor: {e}")
+        logger.error(f"❌ Erro ao iniciar servidor: {e}", exc_info=True)
         raise

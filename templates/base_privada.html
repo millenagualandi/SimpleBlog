@@ -1,14 +1,17 @@
 {% set erros = erros if erros is defined else {} %}
 {% set dados = dados if dados is defined else {} %}
+{#--------------------------------------------------------------
+   TEMPLATE BASE – layout.html
+   -------------------------------------------------------------- #}
 <!DOCTYPE html>
 <html lang="pt-BR">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ APP_NAME }} :: {% block titulo %}{% endblock %}</title>
+    <title>{{ APP_NAME }}</title>
 
-    <!-- Bootstrap CSS (local - permite troca de temas) -->
+    <!-- Bootstrap CSS (local – permite troca de temas) -->
     <link href="/static/css/bootstrap.min.css" rel="stylesheet">
 
     <!-- CSS Customizado -->
@@ -17,20 +20,29 @@
     <!-- Widget de Chat CSS -->
     <link rel="stylesheet" href="/static/css/widget-chat.css">
 
+    {# Bloco que pode ser sobrescrito nas páginas filhas #}
     {% block head %}{% endblock %}
 </head>
 
-<body class="d-flex flex-column min-vh-100">
-    <!-- Navbar Privada (Área Autenticada) -->
+{# Inserimos o data-attribute no body em vez de injetar JS - evita erros de parser/editor #}
+<body class="d-flex flex-column min-vh-100"
+      {% if request.session.get('usuario_logado') %}
+          data-usuario-id="{{ request.session.get('usuario_logado')['id'] | e }}"
+      {% endif %}>
+    {#----------------------------------------------------------Z
+       NAVBAR
+       ---------------------------------------------------------- #}
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
-            <a class="navbar-brand d-flex align-middle" href="/index">
-                <img src="/static/img/logo.svg" alt="Logo" height="30" class="d-inline-block align-text-top me-2"
-                    onerror="this.style.display='none'">
-                {{ APP_NAME }}
-            </a>
+            <a class="navbar-brand" href="/">{{ APP_NAME }}</a>
 
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <button class="navbar-toggler"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#navbarNav"
+                    aria-controls="navbarNav"
+                    aria-expanded="false"
+                    aria-label="Alternar navegação">
                 <span class="navbar-toggler-icon"></span>
             </button>
 
@@ -39,42 +51,57 @@
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
                         <a class="nav-link {{ 'active' if request.path == '/usuario' else '' }}"
-                            href="/usuario">Dashboard</a>
+                           href="/usuario"><i class="bi bi-house-door"></i> Dashboard</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {{ 'active' if '/usuario/perfil/' in request.path else '' }}"
-                            href="/usuario/perfil/visualizar">Perfil</a>
+                           href="/usuario/perfil/visualizar"><i class="bi bi-person"></i> Perfil</a>
                     </li>
-                    {% if request.session.get('usuario_logado')['perfil'] == 'Administrador' %}
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if '/admin/chamados/' in request.path else '' }}"
-                            href="/admin/chamados/listar">Chamados</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if '/admin/usuarios/' in request.path else '' }}"
-                            href="/admin/usuarios/listar">Usuários</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if '/admin/configuracoes' in request.path else '' }}"
-                            href="/admin/configuracoes">Configurações</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if '/admin/tema' in request.path else '' }}"
-                            href="/admin/tema">Tema</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if '/admin/auditoria' in request.path else '' }}"
-                            href="/admin/auditoria">Auditoria</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if '/admin/backups/' in request.path else '' }}"
-                            href="/admin/backups/listar">Backup</a>
-                    </li>
+
+                    {% if request.session.get('usuario_logado') and
+                          request.session.get('usuario_logado')['perfil'] == 'Administrador' %}
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if '/admin/chamados/' in request.path else '' }}"
+                               href="/admin/chamados/listar"><i class="bi bi-headset"></i> Chamados</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if '/admin/usuarios/' in request.path else '' }}"
+                               href="/admin/usuarios/listar"><i class="bi bi-people"></i> Usuários</a>
+                        </li>
+                        <!-- NOVO: Link para Categorias (apenas admin) -->
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if '/admin/categorias/' in request.path else '' }}"
+                               href="/admin/categorias/listar"><i class="bi bi-folder"></i> Categorias</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if '/admin/tema' in request.path else '' }}"
+                               href="/admin/tema"><i class="bi bi-palette"></i> Tema</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if '/admin/auditoria' in request.path else '' }}"
+                               href="/admin/auditoria"><i class="bi bi-journal-text"></i> Auditoria</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if '/admin/backups/' in request.path else '' }}"
+                               href="/admin/backups/listar"><i class="bi bi-server"></i> Backup</a>
+                        </li>
                     {% else %}
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if '/chamados/' in request.path else '' }}"
-                            href="/chamados/listar">Chamados</a>
-                    </li>
+                        <!-- NOVO: Link para Meus Artigos (apenas autores) -->
+                        {% if request.session.get('usuario_logado') and
+                              request.session.get('usuario_logado')['perfil'] == 'Autor' %}
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if '/artigos/meus' in request.path or '/artigos/cadastrar' in request.path or '/artigos/editar' in request.path else '' }}"
+                               href="/artigos/meus"><i class="bi bi-file-earmark-text"></i> Meus Artigos</a>
+                        </li>
+                        {% endif %}
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if '/tarefas/' in request.path else '' }}"
+                               href="/tarefas/listar">Tarefas</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ 'active' if '/chamados/' in request.path else '' }}"
+                               href="/chamados/listar">Chamados</a>
+                        </li>
                     {% endif %}
                 </ul>
 
@@ -87,7 +114,8 @@
     </nav>
 
     <!-- Container para Toasts (bottom-right) -->
-    <div id="toast-container" class="toast-container position-fixed bottom-0 end-0 p-4 mb-5">
+    <div id="toast-container"
+         class="toast-container position-fixed bottom-0 end-0 p-4 toast-offset">
     </div>
 
     <!-- Conteúdo Principal -->
@@ -95,10 +123,8 @@
         {% block content %}{% endblock %}
     </main>
 
-    <!-- Modal de Confirmação (componente genérico) -->
+    <!-- Modais genéricos -->
     {% include 'components/modal_confirmacao.html' %}
-
-    <!-- Modal de Alerta (componente genérico) -->
     {% include 'components/modal_alerta.html' %}
 
     <!-- Chat Widget -->
@@ -108,8 +134,8 @@
     <footer class="bg-light text-center text-muted py-3 mt-auto">
         <div class="container">
             <p class="mb-0">&copy; 2025 {{ APP_NAME }}. Todos os direitos reservados.</p>
+        </div>
     </footer>
-    </div>
 
     <!-- Dados de mensagens (hidden) -->
     <script id="mensagens-data" type="application/json">
@@ -119,7 +145,7 @@
     <!-- Configurações globais da aplicação -->
     <script>
         // Delay configurável para auto-hide dos toasts
-        window.TOAST_AUTO_HIDE_DELAY_MS = {{ TOAST_AUTO_HIDE_DELAY_MS }};
+        window.TOAST_AUTO_HIDE_DELAY_MS = { TOAST_AUTO_HIDE_DELAY_MS };
     </script>
 
     <!-- Bootstrap 5.3.8 JS Bundle -->
@@ -128,38 +154,30 @@
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
 
-    <!-- Script de Toasts -->
+    <!-- Scripts personalizados -->
     <script src="/static/js/toasts.js"></script>
-
-    <!-- Script de Modal de Alerta -->
     <script src="/static/js/modal-alerta.js"></script>
-
-    <!-- Script de Validação de Senha -->
     <script src="/static/js/validador-senha.js"></script>
-
-    <!-- Script de Máscaras de Input -->
     <script src="/static/js/mascara-input.js"></script>
-
-    <!-- Script de Auxiliares de Exclusão -->
-    <script src="/static/js/auxiliares-exclusao.js"></script>
-
-    <!-- Chat Widget JS -->
     <script src="/static/js/widget-chat.js" defer></script>
-    <script>
-        // Guardar ID do usuário logado no body para o chat
-        {% if request.session.get('usuario_logado') %}
-        document.body.dataset.usuarioId = {{ request.session.get('usuario_logado')['id'] }};
-        {% endif %}
 
-        // Inicializar chat quando DOM estiver pronto
+    <!-- Script de inicialização -->
+    <script>
+        // Nota: o ID do usuário agora está disponível em document.body.dataset.usuarioId
+        // (definido no atributo data-usuario-id do <body>) — evita injeção direta de Jinja no JS.
+
         document.addEventListener('DOMContentLoaded', () => {
+            // Exemplo opcional de leitura do atributo (pode ser usado pelo chatWidget internamente):
+            // const usuarioId = document.body.dataset.usuarioId || null;
+            // console.log('usuarioId:', usuarioId);
+
             if (typeof chatWidget !== 'undefined') {
                 chatWidget.init();
             }
         });
     </script>
 
+    {# Bloco para inserir scripts adicionais nas páginas filhas #}
     {% block scripts %}{% endblock %}
 </body>
-
 </html>

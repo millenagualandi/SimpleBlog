@@ -1,0 +1,168 @@
+{% extends "base_privada.html" %}
+{% from "macros/form_fields.html" import field with context %}
+
+{% block titulo %}Editar Artigo{% endblock %}
+
+{% block head %}
+<!-- EasyMDE - Editor Markdown -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
+<style>
+    .EasyMDEContainer .CodeMirror {
+        border-radius: 0 0 4px 4px;
+    }
+    .editor-toolbar {
+        border-radius: 4px 4px 0 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="d-flex align-items-center mb-4">
+            <a href="/artigos/meus" class="btn btn-outline-secondary me-3">
+                <i class="bi bi-arrow-left"></i>
+            </a>
+            <h2 class="mb-0"><i class="bi bi-pencil-square"></i> Editar Artigo</h2>
+        </div>
+
+        <div class="card shadow-sm">
+            <form method="POST" action="/artigos/editar/{{ artigo.id }}" id="formArtigo">
+                <div class="card-body p-4">
+                    <div class="row">
+                        <div class="col-12">
+                            {% include "components/alerta_erro.html" %}
+                        </div>
+
+                        <div class="col-md-8">
+                            {{ field(
+                                name='titulo',
+                                label='Título do Artigo',
+                                type='text',
+                                required=true,
+                                value=dados_formulario.titulo if dados_formulario else artigo.titulo,
+                                placeholder='Digite um título atrativo para seu artigo...',
+                                help_text='O título deve ter entre 5 e 200 caracteres'
+                            ) }}
+                        </div>
+
+                        <div class="col-md-4">
+                            {% set categorias_dict = {'': 'Selecione uma categoria...'} %}
+                            {% for cat in categorias %}
+                                {% set _ = categorias_dict.update({cat.id|string: cat.nome}) %}
+                            {% endfor %}
+                            {% set categoria_valor = dados_formulario.categoria_id if dados_formulario else artigo.categoria_id %}
+                            {{ field(
+                                name='categoria_id',
+                                label='Categoria',
+                                type='select',
+                                required=true,
+                                value=categoria_valor,
+                                options=categorias_dict
+                            ) }}
+                        </div>
+
+                        <div class="col-12">
+                            {{ field(
+                                name='resumo',
+                                label='Resumo',
+                                type='textarea',
+                                required=false,
+                                value=dados_formulario.resumo if dados_formulario else artigo.resumo,
+                                placeholder='Um breve resumo do artigo que será exibido na listagem...',
+                                help_text='Opcional. Máximo de 500 caracteres.',
+                                rows=2
+                            ) }}
+                        </div>
+
+                        <div class="col-12 mb-3">
+                            <label for="conteudo" class="form-label">Conteúdo <span class="text-danger">*</span></label>
+                            <textarea name="conteudo" id="conteudo" required>{{ dados_formulario.conteudo if dados_formulario else artigo.conteudo }}</textarea>
+                            <small class="form-text text-muted">
+                                Use Markdown para formatar seu texto. Mínimo de 50 caracteres.
+                            </small>
+                        </div>
+
+                        <div class="col-md-6">
+                            {% set status_atual = dados_formulario.status_artigo if dados_formulario else artigo.status %}
+                            {{ field(
+                                name='status_artigo',
+                                label='Status',
+                                type='select',
+                                value=status_atual,
+                                options={
+                                    'Rascunho': 'Rascunho - Salvar para continuar depois',
+                                    'Finalizado': 'Finalizado - Pronto para revisão',
+                                    'Publicado': 'Publicado - Visível para todos',
+                                    'Pausado': 'Pausado - Temporariamente indisponível'
+                                }
+                            ) }}
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Informações</label>
+                            <div class="small text-muted">
+                                <p class="mb-1"><i class="bi bi-eye"></i> Visualizações: {{ artigo.qtde_visualizacoes or 0 }}</p>
+                                <p class="mb-1"><i class="bi bi-calendar"></i> Criado em: {{ artigo.data_cadastro|data_br if artigo.data_cadastro else '-' }}</p>
+                                {% if artigo.data_publicacao %}
+                                <p class="mb-0"><i class="bi bi-send"></i> Publicado em: {{ artigo.data_publicacao|data_br }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer p-4">
+                    <div class="d-flex gap-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Salvar Alterações
+                        </button>
+                        {% if artigo.status != 'Publicado' %}
+                        <button type="button" class="btn btn-success" onclick="publicarArtigo()">
+                            <i class="bi bi-send"></i> Publicar
+                        </button>
+                        {% endif %}
+                        <a href="/artigos/meus" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Cancelar
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- EasyMDE - Editor Markdown -->
+<script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const easyMDE = new EasyMDE({
+            element: document.getElementById('conteudo'),
+            spellChecker: false,
+            autosave: {
+                enabled: true,
+                uniqueId: 'artigo-{{ artigo.id }}',
+                delay: 1000,
+            },
+            toolbar: [
+                'bold', 'italic', 'heading', '|',
+                'quote', 'unordered-list', 'ordered-list', '|',
+                'link', 'image', '|',
+                'preview', 'side-by-side', 'fullscreen', '|',
+                'guide'
+            ],
+            status: ['autosave', 'lines', 'words'],
+            minHeight: '300px',
+        });
+    });
+
+    function publicarArtigo() {
+        abrirModalConfirmacao({
+            url: '/artigos/publicar/{{ artigo.id }}',
+            mensagem: 'Deseja publicar este artigo?',
+            detalhes: '<p class="text-info"><i class="bi bi-info-circle"></i> O artigo ficará visível para todos os usuários autenticados.</p>'
+        });
+    }
+</script>
+{% endblock %}

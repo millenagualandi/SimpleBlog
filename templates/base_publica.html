@@ -40,15 +40,16 @@
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
                         <a class="nav-link {{ 'active' if request.path == '/' or request.path == '/index' else '' }}"
-                            href="/">Início</a>
+                            href="/"><i class="bi bi-house-door"></i> Início</a>
+                    </li>
+                    <!-- NOVO: Link para Artigos -->
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if '/artigos' in request.path and '/meus' not in request.path else '' }}"
+                            href="/artigos"><i class="bi bi-newspaper"></i> Artigos</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {{ 'active' if request.path == '/sobre' else '' }}"
-                            href="/sobre">Sobre</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ 'active' if '/exemplos' in request.path else '' }}"
-                            href="/exemplos">Exemplos</a>
+                            href="/sobre"><i class="bi bi-info-circle"></i> Sobre</a>
                     </li>
                 </ul>
 
@@ -135,7 +136,7 @@
     <script src="/static/js/widget-chat.js" defer></script>
     <script>
         // Guardar ID do usuário logado no body para o chat
-        document.body.dataset.usuarioId = {{ request.session.get('usuario_logado')['id'] }};
+        document.body.dataset.usuarioId = { request.session.get('usuario_logado')['id'] };
 
         // Inicializar chat quando DOM estiver pronto
         document.addEventListener('DOMContentLoaded', () => {
