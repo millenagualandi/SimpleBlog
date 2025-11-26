@@ -71,7 +71,7 @@ def create_app() -> FastAPI:
     # ------------------------------------------------------------
     app.add_middleware(SessionMiddleware, secret_key=SECRET_KEY)
     app.add_middleware(MiddlewareProtecaoCSRF)
-    logger.info("✅ Middlewares registrados com sucesso")
+    logger.info(" Middlewares registrados com sucesso")
 
     # ------------------------------------------------------------
     # Handlers de exceção
@@ -80,7 +80,7 @@ def create_app() -> FastAPI:
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
     app.add_exception_handler(ErroValidacaoFormulario, form_validation_exception_handler)
     app.add_exception_handler(Exception, generic_exception_handler)
-    logger.info("✅ Exception handlers configurados")
+    logger.info(" Exception handlers configurados")
 
     # ------------------------------------------------------------
     # Arquivos estáticos
@@ -88,17 +88,17 @@ def create_app() -> FastAPI:
     static_path = Path("static")
     if static_path.exists():
         app.mount("/static", StaticFiles(directory="static"), name="static")
-        logger.info("📂 Arquivos estáticos montados em /static")
+        logger.info(" Arquivos estáticos montados em /static")
     else:
         logger.warning(
-            "⚠️ Diretório 'static' não encontrado – rotas estáticas não foram montadas"
+            " Diretório 'static' não encontrado – rotas estáticas não foram montadas"
         )
 
     # ------------------------------------------------------------
     # Banco de dados e seeds
     # ------------------------------------------------------------
     try:
-        logger.info("🛠️ Criando/verificando tabelas do banco de dados...")
+        logger.info(" Criando/verificando tabelas do banco de dados...")
         usuario_repo.criar_tabela()
         configuracao_repo.criar_tabela()
         chamado_repo.criar_tabela()
@@ -109,12 +109,12 @@ def create_app() -> FastAPI:
         indices_repo.criar_indices()
         categoria_repo.criar_tabela()    # NOVO: Criar tabela de categorias
         artigo_repo.criar_tabela()       # NOVO: Criar tabela de artigos
-        logger.info("✅ Tabelas e índices criados/verificados com sucesso")
+        logger.info(" Tabelas e índices criados/verificados com sucesso")
 
         inicializar_dados()
-        logger.info("🌱 Dados iniciais carregados com sucesso")
+        logger.info(" Dados iniciais carregados com sucesso")
     except Exception as e:
-        logger.error(f"❌ Erro ao preparar banco de dados: {e}", exc_info=True)
+        logger.error(f" Erro ao preparar banco de dados: {e}", exc_info=True)
         raise
 
     # ------------------------------------------------------------
@@ -137,7 +137,7 @@ def create_app() -> FastAPI:
     for r in routers:
         app.include_router(r)
         logger.info(
-            f"🔗 Router incluído: {r.prefix if hasattr(r, 'prefix') else 'sem prefixo'}"
+            f" Router incluído: {r.prefix if hasattr(r, 'prefix') else 'sem prefixo'}"
         )
 
     # ------------------------------------------------------------
@@ -147,7 +147,7 @@ def create_app() -> FastAPI:
     async def health_check():
         return {"status": "healthy"}
 
-    logger.info(f"🚀 {APP_NAME} inicializado com sucesso (v{VERSION})")
+    logger.info(f" {APP_NAME} inicializado com sucesso (v{VERSION})")
     return app
 
 
@@ -161,10 +161,10 @@ app = create_app()
 # ------------------------------------------------------------
 if __name__ == "__main__":
     logger.info("=" * 70)
-    logger.info(f"🟢 Iniciando {APP_NAME} v{VERSION}")
-    logger.info(f"🌐 Acesse: http://{HOST}:{PORT}")
-    logger.info(f"🔁 Hot reload: {'Ativado' if RELOAD else 'Desativado'}")
-    logger.info(f"📘 Docs: http://{HOST}:{PORT}/docs")
+    logger.info(f" Iniciando {APP_NAME} v{VERSION}")
+    logger.info(f" Acesse: http://{HOST}:{PORT}")
+    logger.info(f" Hot reload: {'Ativado' if RELOAD else 'Desativado'}")
+    logger.info(f" Docs: http://{HOST}:{PORT}/docs")
     logger.info("=" * 70)
 
     try:
@@ -176,7 +176,7 @@ if __name__ == "__main__":
             log_level="info",
         )
     except KeyboardInterrupt:
-        logger.info("🛑 Servidor encerrado pelo usuário")
+        logger.info(" Servidor encerrado pelo usuário")
     except Exception as e:
-        logger.error(f"❌ Erro ao iniciar servidor: {e}", exc_info=True)
+        logger.error(f" Erro ao iniciar servidor: {e}", exc_info=True)
         raise
